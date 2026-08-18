@@ -1,15 +1,17 @@
 import os
-import logging
 from telegram.ext import Application, MessageHandler, filters, CommandHandler
 from flask import Flask, request
 from telegram import Update
 import threading
 
+# الإعدادات
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 PORT = int(os.environ.get("PORT", 10000))
 
-ALLOWED_USERS = [5040904989, 822007358]
-ED_USERS = [-1004380911690, -1003952714985, -1002470205630, -1004407774851, 1154384855, 822007358, 2065539959]
+# القوائم المنظمة
+ALLOWED_USERS = [5040904989, 822007358, 1019177539, 2065539959]
+MAIN_GROUP = -1004380911690
+OTHER_GROUPS = [-1003952714985, -1002470205630, -1004407774851]
 
 sent_messages_map = {}
 app_flask = Flask(__name__)
@@ -17,18 +19,20 @@ bot_app = Application.builder().token(BOT_TOKEN).build()
 
 async def handle_message(update, context):
     if update.message and update.message.text:
-        chat_id_source = update.message.chat_id
+        chat_id = update.message.chat_id
         user_id = update.message.from_user.id
-        if chat_id_source == -1004380911690 and (user_id in ALLOWED_USERS):
+        
+        # التأكد أن الرسالة من المجموعة الرئيسية ومن شخص مسموح له
+        if chat_id == MAIN_GROUP and user_id in ALLOWED_USERS:
             text = update.message.text
             main_msg_id = update.message.message_id
             sent_messages_map[main_msg_id] = {}
-            for chat_id in ED_USERS:
-                if chat_id == chat_id_source: continue
+
+            for target_group in OTHER_GROUPS:
                 try:
-                    sent_msg = await context.bot.send_message(chat_id=chat_id, text=text)
-                    sent_messages_map[main_msg_id][chat_id] = sent_msg.message_id
-                except: pass
+                    sent_msg = await context.bot.send_message(chat_id=target_group, text=text)
+                    sent_messages_map[main_msg_id][target_group] = sent_msg.message_id
+                except Exception as e: print(f"Error sending to {target_group}: {e}")
 
 async def delete_msg(update, context):
     if update.message.reply_to_message:
